@@ -28,14 +28,12 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
  * @author Josué
  */
-public final class Node {
+public final class Node implements Runnable {
 
     private final Integer portNumber;
 
@@ -47,62 +45,41 @@ public final class Node {
         this.portNumber = portNumber;
         this.status = Status.AVAILABLE;
         this.HSN = 0;
-        startSocketServer();
     }
 
-    private void startSocketServer() {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    ServerSocket welcomeSocket = new ServerSocket(portNumber);
-                    System.out.println("SERVER: running on port " + portNumber);
+    @Override
+    public void run() {
+        try {
+            ServerSocket welcomeSocket = new ServerSocket(portNumber);
+            System.out.println("SERVER: running on port " + portNumber);
 
-                    // Server loop
-                    while (true) {
+            // Server loop
+            while (true) {
 
-                        // Request Handle
-                        Socket connectionSocket = welcomeSocket.accept();
-                        
-                        ObjectInputStream in = new ObjectInputStream(
-                                connectionSocket.getInputStream());
-                        ObjectOutputStream out = new ObjectOutputStream(
-                                connectionSocket.getOutputStream());
-                        
-                        Object clientSentence = in.readObject();
-                        System.out.printf("SERVER: Received %s on port %d\n",
-                                clientSentence, portNumber);
-                        
-                        out.writeObject("Teste Reponse");
-                        
-                        out.close();
-                        in.close();
-                        connectionSocket.close();
-                    }
-                } catch (IOException | ClassNotFoundException e) {
-                    System.err.println("SERVER:" + e);
-                }
+                // Request Handle
+                Socket connectionSocket = welcomeSocket.accept();
+
+                ObjectInputStream in = new ObjectInputStream(
+                        connectionSocket.getInputStream());
+
+                Object clientSentence = in.readObject();
+                System.out.printf("SERVER: Received %s on port %d\n",
+                        clientSentence, portNumber);
             }
-        }).start();
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("SERVER:" + e);
+        }
     }
 
     public void send(String msg, Integer port) throws ClassNotFoundException {
         // Try to connect to server
         try (Socket clientSocket = new Socket("localhost", port)) {
-            
-            ObjectInputStream in = new ObjectInputStream(
-                    clientSocket.getInputStream());
             ObjectOutputStream out = new ObjectOutputStream(
                     clientSocket.getOutputStream());
-            
+
             // Send data
             out.writeObject(msg);
-            
-            Object serverSentence = in.readObject();
-            System.out.printf("CLIENT: Received %s from server\n", serverSentence);
-            
-            out.close();
-            in.close();
+
             clientSocket.close();
         } catch (IOException e) {
             System.err.println("CLIENT:" + e);
