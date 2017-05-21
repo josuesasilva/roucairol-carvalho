@@ -23,14 +23,13 @@
  */
 package br.pucminas.distributedsystems.roucairolcarvalho;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -65,30 +64,45 @@ public final class Node {
                         // Request Handle
                         Socket connectionSocket = welcomeSocket.accept();
                         
-                        ObjectInputStream inFromClient = new ObjectInputStream(
+                        ObjectInputStream in = new ObjectInputStream(
                                 connectionSocket.getInputStream());
+                        ObjectOutputStream out = new ObjectOutputStream(
+                                connectionSocket.getOutputStream());
                         
-                        String clientSentence = inFromClient.toString();
+                        Object clientSentence = in.readObject();
                         System.out.printf("SERVER: Received %s on port %d\n",
                                 clientSentence, portNumber);
+                        
+                        out.writeObject("Teste Reponse");
+                        
+                        out.close();
+                        in.close();
+                        connectionSocket.close();
                     }
-                } catch (IOException e) {
+                } catch (IOException | ClassNotFoundException e) {
                     System.err.println("SERVER:" + e);
                 }
             }
         }).start();
     }
 
-    public void send(String msg) throws ClassNotFoundException {
+    public void send(String msg, Integer port) throws ClassNotFoundException {
         // Try to connect to server
-        try (Socket clientSocket = new Socket("0.0.0.0", 10001)) {
+        try (Socket clientSocket = new Socket("localhost", port)) {
             
-            ObjectOutputStream outToServer = new ObjectOutputStream(
+            ObjectInputStream in = new ObjectInputStream(
+                    clientSocket.getInputStream());
+            ObjectOutputStream out = new ObjectOutputStream(
                     clientSocket.getOutputStream());
             
             // Send data
-            outToServer.writeObject(msg);
+            out.writeObject(msg);
             
+            Object serverSentence = in.readObject();
+            System.out.printf("CLIENT: Received %s from server\n", serverSentence);
+            
+            out.close();
+            in.close();
             clientSocket.close();
         } catch (IOException e) {
             System.err.println("CLIENT:" + e);
