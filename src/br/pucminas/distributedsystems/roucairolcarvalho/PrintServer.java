@@ -59,22 +59,32 @@ public class PrintServer implements Runnable {
 
                 Object clientSentence = in.readObject();
                 
-                System.out.printf("PRINT SERVER: receive a job\n");
-                
                 lastTimestamp = new Date().getTime();
-                
-                for (int i = 0; i < 10; i++) {
-                    System.out.println(lastTimestamp++);
-                    Thread.sleep(500);
-                }
-                
-                System.out.printf("PRINT SERVER: finish job\n");
+                dispatch(lastTimestamp);
             }
             
-        } catch (IOException | ClassNotFoundException | InterruptedException e) {
+        } catch (IOException | ClassNotFoundException e) {
             System.err.println("PRINT SERVER:" + e);
         }
         System.out.println("PRINT SERVER: running on port " + portNumber);
     }
     
+    private void dispatch(final long timestamp) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                System.out.printf("PRINT SERVER: receive a job\n");
+                long value = timestamp;
+                for (int i = 0; i < 10; i++) {
+                    System.out.println(value++);
+                    try {
+                        Thread.sleep(500);
+                    } catch (InterruptedException e) {
+                        System.err.println("PRINT SERVER: dispatch " + e);
+                    }
+                }
+                System.out.printf("PRINT SERVER: finish job\n");
+            }
+        }).start();
+    }
 }
