@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2017 Josué.
+ * Copyright 2017 josue_000.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -25,89 +25,56 @@ package br.pucminas.distributedsystems.roucairolcarvalho;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Date;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
- * @author Josué
+ * @author Josue
  */
-public final class Node implements Runnable {
+public class PrintServer implements Runnable {
 
     private final Integer portNumber;
+    private long lastTimestamp;
 
-    private Status status;
-    private Integer OSN;
-    private Integer HSN;
-
-    public Node(Integer portNumber) {
+    public PrintServer(int portNumber) {
         this.portNumber = portNumber;
-        this.status = Status.AVAILABLE;
-        this.HSN = 0;
     }
-
+    
     @Override
     public void run() {
         try {
             ServerSocket socket = new ServerSocket(portNumber);
-            System.out.println("SERVER: running on port " + portNumber);
-
+            
             // Server loop
             while (true) {
 
                 // Request Handle
                 Socket connectionSocket = socket.accept();
-
                 ObjectInputStream in = new ObjectInputStream(
                         connectionSocket.getInputStream());
 
                 Object clientSentence = in.readObject();
-                System.out.printf("SERVER: Received %s on port %d\n",
-                        clientSentence, portNumber);
+                
+                System.out.printf("PRINT SERVER: receive a job\n");
+                
+                lastTimestamp = new Date().getTime();
+                
+                for (int i = 0; i < 10; i++) {
+                    System.out.println(lastTimestamp++);
+                    Thread.sleep(500);
+                }
+                
+                System.out.printf("PRINT SERVER: finish job\n");
             }
-        } catch (IOException | ClassNotFoundException e) {
-            System.err.println("SERVER:" + e);
+            
+        } catch (IOException | ClassNotFoundException | InterruptedException e) {
+            System.err.println("PRINT SERVER:" + e);
         }
+        System.out.println("PRINT SERVER: running on port " + portNumber);
     }
-
-    public void send(String msg, Integer port) throws ClassNotFoundException {
-        // Try to connect to server
-        try (Socket clientSocket = new Socket("localhost", port)) {
-            ObjectOutputStream out = new ObjectOutputStream(
-                    clientSocket.getOutputStream());
-
-            // Send data
-            out.writeObject(msg);
-
-            clientSocket.close();
-        } catch (IOException e) {
-            System.err.println("CLIENT:" + e);
-        }
-    }
-
-    public Status getStatus() {
-        return status;
-    }
-
-    public void setStatus(Status status) {
-        this.status = status;
-    }
-
-    public Integer getOSN() {
-        return OSN;
-    }
-
-    public void setOSN(Integer OSN) {
-        this.OSN = OSN;
-    }
-
-    public Integer getHSN() {
-        return HSN;
-    }
-
-    public void setHSN(Integer HSN) {
-        this.HSN = HSN;
-    }
-
+    
 }
