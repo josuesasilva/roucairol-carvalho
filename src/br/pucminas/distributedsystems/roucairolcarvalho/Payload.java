@@ -23,6 +23,8 @@
  */
 package br.pucminas.distributedsystems.roucairolcarvalho;
 
+import java.io.Serializable;
+
 
 enum Type {
     REQUEST, REPLY
@@ -32,14 +34,18 @@ enum Type {
  *
  * @author Josué
  */
-public class Payload {
+public class Payload implements Serializable {
     
     private Type type;
     private Integer clock;
-
-    public Payload(Type type, Integer clock) {
+    private Integer port;
+    private String ip;
+    
+    public Payload(Type type, Node node) {
         this.type = type;
-        this.clock = clock;
+        this.clock = node.getOSN();
+        this.port = node.getNodePortNumber();
+        this.ip = node.getNodeIp();
     }
 
     public Type getType() {
@@ -56,5 +62,27 @@ public class Payload {
 
     public void setClock(Integer clock) {
         this.clock = clock;
+    }
+
+    public Integer getPort() {
+        return port;
+    }
+
+    public void setPort(Integer port) {
+        this.port = port;
+    }
+
+    public String getIp() {
+        return ip;
+    }
+
+    public void setIp(String ip) {
+        this.ip = ip;
+    }
+
+    @Override
+    public String toString() {
+        return String.format("Request type: %s | from %s:%d | clock %d", 
+                type, ip, port, clock);
     }
 }

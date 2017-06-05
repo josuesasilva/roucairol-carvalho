@@ -28,8 +28,7 @@ import java.io.ObjectInputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Date;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+
 
 /**
  *
@@ -37,17 +36,19 @@ import java.util.logging.Logger;
  */
 public class PrintServer implements Runnable {
 
-    private final Integer portNumber;
+    private final Integer serverPortNumber;
+    private final String serverIp;
     private long lastTimestamp;
-
-    public PrintServer(int portNumber) {
-        this.portNumber = portNumber;
+    
+    public PrintServer(String ip, Integer portNumber) {
+        this.serverIp = ip;
+        this.serverPortNumber = portNumber;
     }
     
     @Override
     public void run() {
         try {
-            ServerSocket socket = new ServerSocket(portNumber);
+            ServerSocket socket = new ServerSocket(serverPortNumber);
             
             // Server loop
             while (true) {
@@ -57,26 +58,15 @@ public class PrintServer implements Runnable {
                 ObjectInputStream in = new ObjectInputStream(
                         connectionSocket.getInputStream());
 
-                Object clientSentence = in.readObject();
+                Payload clientSentence = (Payload) in.readObject();
+                
+                System.out.println(clientSentence);
                 
                 lastTimestamp = new Date().getTime();
-                dispatch(lastTimestamp);
-            }
-            
-        } catch (IOException | ClassNotFoundException e) {
-            System.err.println("PRINT SERVER:" + e);
-        }
-        System.out.println("PRINT SERVER: running on port " + portNumber);
-    }
-    
-    private void dispatch(final long timestamp) {
-        new Thread(new Runnable() {
-            @Override
-            public void run() {
                 System.out.printf("PRINT SERVER: receive a job\n");
-                long value = timestamp;
+                
                 for (int i = 0; i < 10; i++) {
-                    System.out.println(value++);
+                    System.out.println(lastTimestamp++);
                     try {
                         Thread.sleep(500);
                     } catch (InterruptedException e) {
@@ -85,6 +75,19 @@ public class PrintServer implements Runnable {
                 }
                 System.out.printf("PRINT SERVER: finish job\n");
             }
-        }).start();
+            
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("PRINT SERVER:" + e);
+        }
+        System.out.printf("PRINT SERVER: running on %s:%d ", serverIp, 
+                serverPortNumber);
+    }
+
+    public Integer getServerPortNumber() {
+        return serverPortNumber;
+    }
+
+    public String getServerIp() {
+        return serverIp;
     }
 }
