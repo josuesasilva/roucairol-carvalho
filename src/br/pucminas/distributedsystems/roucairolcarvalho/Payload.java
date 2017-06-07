@@ -27,7 +27,7 @@ import java.io.Serializable;
 
 
 enum Type {
-    REQUEST, REPLY
+    REQUEST, REPLY, DONE
 }
 
 /**
@@ -37,7 +37,7 @@ enum Type {
 public class Payload implements Serializable {
     
     private Type type;
-    private Integer clock;
+    private long clock;
     private Integer port;
     private String ip;
     
@@ -46,6 +46,10 @@ public class Payload implements Serializable {
         this.clock = node.getOSN();
         this.port = node.getNodePortNumber();
         this.ip = node.getNodeIp();
+    }
+    
+    public Payload(Type type) {
+        this.type = type;
     }
 
     public Type getType() {
@@ -56,11 +60,11 @@ public class Payload implements Serializable {
         this.type = type;
     }
 
-    public Integer getClock() {
+    public long getClock() {
         return clock;
     }
 
-    public void setClock(Integer clock) {
+    public void setClock(long clock) {
         this.clock = clock;
     }
 
@@ -82,7 +86,7 @@ public class Payload implements Serializable {
 
     @Override
     public String toString() {
-        return String.format("Request type: %s | from %s:%d | clock %d", 
+        return String.format("{ Request type: %s | from: %s:%d | clock: %d }", 
                 type, ip, port, clock);
     }
 }

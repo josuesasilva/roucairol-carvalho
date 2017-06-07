@@ -38,18 +38,20 @@ import java.util.Random;
 public final class Node implements Runnable {
 
     private Status status;
-    private Integer OSN;
-    private Integer HSN;
+    private long OSN;
+    private long HSN;
     private String printServerIp;
     private Integer printServerPort;
     private ArrayList<NodeReference> nodes;
     private Integer responseCounter;
+    private ConnectionManager connectionManager;
     private final ArrayList<Payload> requestList;
     private final String nodeIp;
     private final Integer nodePortNumber;
 
     public Node() {
         this.status = Status.AVAILABLE;
+        this.OSN = 0;
         this.HSN = 0;
         this.nodes = new ArrayList<>();
         this.responseCounter = 0;
@@ -59,8 +61,10 @@ public final class Node implements Runnable {
     }
     
     public Node(ArrayList<NodeReference> nodes, String nodeIp, 
-            Integer nodePortNumber, String printServerIp, Integer printServerPort) {
+            Integer nodePortNumber, String printServerIp, 
+            Integer printServerPort, ConnectionManager connectionManager) {
         this.status = Status.AVAILABLE;
+        this.OSN = 0;
         this.HSN = 0;
         this.printServerPort = printServerPort;
         this.printServerIp = printServerIp;
@@ -69,19 +73,16 @@ public final class Node implements Runnable {
         this.nodes = nodes;
         this.responseCounter = 0;
         this.requestList = new ArrayList<>();
-        
-        if (shouldRequest()) {
-            System.out.printf("NODE %s:%d: will request\n", nodeIp, nodePortNumber);
-            request();
-        }
+        this.connectionManager = connectionManager;
     }
 
     @Override
     public void run() {
         try {
             ServerSocket socket = new ServerSocket(nodePortNumber);
-            System.out.println("SERVER: running on port " + nodePortNumber);
-
+            System.out.println("\u001B[34mNODE: running on port " + nodePortNumber);
+            connectionManager.didConnect();
+            
             // server loop
             while (true) {
 
@@ -91,13 +92,24 @@ public final class Node implements Runnable {
 
                 Payload request = (Payload) in.readObject();
                 
+                if (request.getType() == Type.DONE) {
+                    requestList.stream().forEach((node) -> {
+                        send(new Payload(Type.REPLY, this), node.getIp(), 
+                                node.getPort());
+                    });
+                    status = Status.AVAILABLE;
+                    System.out.printf("\u001B[34mNODE: %s:%d is leaving print server\n", 
+                            nodeIp, nodePortNumber);
+                    continue;
+                }
+                
                 HSN = HSN > request.getClock() ? HSN : request.getClock();
                 
                 if (request.getType() == Type.REPLY) {
-                    System.out.printf("SERVER: Received REPLY from %s:%d\n", 
-                            request.getIp(), request.getPort());
+                    System.out.printf("\u001B[34mNODE: %s:%d received REPLY from %s:%d\n", 
+                            nodeIp, nodePortNumber, request.getIp(), request.getPort());
                     responseCounter++;
-                } else if (status == Status.AVAILABLE) {
+                } else if (status == Status.AVAILABLE) {                    
                     Payload reply = new Payload(Type.REPLY, this);
                     send(reply, request.getIp(), request.getPort());
                 } else if (status == Status.BUSY) {
@@ -112,11 +124,21 @@ public final class Node implements Runnable {
                 }
             }
         } catch (IOException | ClassNotFoundException e) {
-            System.err.println("SERVER:" + e);
+            System.err.println("NODE:" + e);
         }
     }
     
-    public void request() {
+    public void shouldRequest() {
+        double value = (new Random().nextDouble() + 0.0);
+        if (value > 0) {
+            System.out.printf("\u001B[34mNODE: %s:%d will request(%f)\n", 
+                    nodeIp, nodePortNumber, value);
+            new Thread(() -> request()).start();
+        }
+    }
+    
+    private void request() {
+            // trying to print
         status = Status.WAITING;
         
         // increment clock
@@ -125,38 +147,36 @@ public final class Node implements Runnable {
         
         // send request to all nodes
         nodes.stream().forEach((node) -> {
-            send(payload, node.getIp(), node.getPort());
+            if (
+                (node.getIp().equals(nodeIp) && !node.getPort().equals(nodePortNumber)) ||
+                (!node.getIp().equals(nodeIp) && node.getPort().equals(nodePortNumber)) ||
+                (!node.getIp().equals(nodeIp) && !node.getPort().equals(nodePortNumber))
+            ) {
+                send(payload, node.getIp(), node.getPort());
+            }
         });
         
-        // waiting for nodes reply
-        while(responseCounter < nodes.size() - 1) {}
+        // waiting for nodes reply or has implicit auth
+        while(responseCounter < (nodes.size() - 1)) {}
         
-        // receive reply of all nodes
         responseCounter = 0;
         status = Status.BUSY;
         
-        // send a job to print server
+        // granted, send job to print server
+        System.out.printf("\u001B[34mNODE: %s:%d will print\n", nodeIp, nodePortNumber);
         Payload jobPayload = new Payload(Type.REQUEST, this);
         send(jobPayload, printServerIp, printServerPort);
     }
 
     private void send(Payload msg, String ip, Integer port) {
-        // try to connect to server
         try (Socket clientSocket = new Socket(ip, port)) {
             ObjectOutputStream out = new ObjectOutputStream(
                     clientSocket.getOutputStream());
-
-            // send data
             out.writeObject(msg);
-
             clientSocket.close();
         } catch (IOException e) {
-            System.err.println("CLIENT:" + e);
+            System.err.println("NODE:" + e);
         }
-    }
-    
-    private boolean shouldRequest() {
-        return (new Random().nextDouble() + 0.0) > 0.5;
     }
 
     public Status getStatus() {
@@ -167,19 +187,19 @@ public final class Node implements Runnable {
         this.status = status;
     }
 
-    public Integer getOSN() {
+    public long getOSN() {
         return OSN;
     }
 
-    public void setOSN(Integer OSN) {
+    public void setOSN(long OSN) {
         this.OSN = OSN;
     }
 
-    public Integer getHSN() {
+    public long getHSN() {
         return HSN;
     }
 
-    public void setHSN(Integer HSN) {
+    public void setHSN(long HSN) {
         this.HSN = HSN;
     }
 
@@ -214,4 +234,9 @@ public final class Node implements Runnable {
     public Integer getNodePortNumber() {
         return nodePortNumber;
     }
+
+    @Override
+    public String toString() {
+        return String.format("Node %s:%d", nodeIp, nodePortNumber);
+    }    
 }

@@ -25,6 +25,7 @@ package br.pucminas.distributedsystems.roucairolcarvalho;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Date;
@@ -60,27 +61,40 @@ public class PrintServer implements Runnable {
 
                 Payload clientSentence = (Payload) in.readObject();
                 
-                System.out.println(clientSentence);
-                
                 lastTimestamp = new Date().getTime();
-                System.out.printf("PRINT SERVER: receive a job\n");
+                System.out.printf("\u001B[35mPRINT SERVER: receive a job %s\n", 
+                        clientSentence);
                 
                 for (int i = 0; i < 10; i++) {
                     System.out.println(lastTimestamp++);
                     try {
                         Thread.sleep(500);
                     } catch (InterruptedException e) {
-                        System.err.println("PRINT SERVER: dispatch " + e);
+                        System.err.println("\u001B[35mPRINT SERVER: dispatch " + e);
                     }
                 }
-                System.out.printf("PRINT SERVER: finish job\n");
+                System.out.printf("\u001B[35mPRINT SERVER: finish job\n");
+                
+                done(clientSentence.getIp(), clientSentence.getPort());
             }
             
         } catch (IOException | ClassNotFoundException e) {
-            System.err.println("PRINT SERVER:" + e);
+            System.err.println("\u001B[35mPRINT SERVER:" + e);
+            System.exit(1);
         }
-        System.out.printf("PRINT SERVER: running on %s:%d ", serverIp, 
+        System.out.printf("\u001B[35mPRINT SERVER: running on %s:%d ", serverIp, 
                 serverPortNumber);
+    }
+    
+    private void done(String ip, Integer port) {
+        try (Socket clientSocket = new Socket(ip, port)) {
+            ObjectOutputStream out = new ObjectOutputStream(
+                    clientSocket.getOutputStream());
+            out.writeObject(new Payload(Type.DONE));
+            clientSocket.close();
+        } catch (IOException e) {
+            System.err.println("\u001B[35mPRINT SERVER:" + e);
+        }
     }
 
     public Integer getServerPortNumber() {

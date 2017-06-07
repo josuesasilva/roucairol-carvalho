@@ -53,5 +53,9 @@ public class NodeReference {
         this.port = port;
     }
     
+    @Override
+    public String toString() {
+        return String.format("Node %s:%d", ip, port);
+    }
     
 }
